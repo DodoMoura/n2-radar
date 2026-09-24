@@ -9,11 +9,11 @@ export function render(el, ctx) {
   const admin = ctx.S.usuario.papel === "admin";
   el.innerHTML = `
   ${admin ? "" : `<div class="callout">Somente administradores podem alterar configurações. Você está vendo os valores atuais.</div>`}
-  <div class="tabs" role="tablist">${[["integracao", "Integração"], ["regras", "SLA e regras"], ["taxonomia", "Classificação"], ...(ctx.S.fonte.modo === "firebase" ? [["usuarios", "Usuários"]] : [])].map(([k, t]) => `<button role="tab" data-aba="${k}" aria-selected="${aba === k}">${t}</button>`).join("")}</div>
+  <div class="tabs" role="tablist">${[["integracao", "Sincronização"], ...(ctx.S.fonte.modo === "firebase" ? [["usuarios", "Usuários"]] : [])].map(([k, t]) => `<button role="tab" data-aba="${k}" aria-selected="${aba === k}">${t}</button>`).join("")}</div>
   <div id="aba" style="display:grid;gap:16px"></div>`;
   el.querySelectorAll("[data-aba]").forEach((b) => (b.onclick = () => { aba = b.dataset.aba; render(el, ctx); }));
   const box = el.querySelector("#aba");
-  if (aba === "usuarios" && ctx.S.fonte.modo !== "firebase") aba = "integracao";
+  if ((aba === "usuarios" && ctx.S.fonte.modo !== "firebase") || aba === "regras" || aba === "taxonomia") aba = "integracao";
   ({ integracao: abaIntegracao, regras: abaRegras, taxonomia: abaTaxonomia, usuarios: abaUsuarios })[aba](box, ctx, admin);
 }
 
