@@ -140,7 +140,7 @@ export async function criarFonteFirebase({ onAuthUI }) {
         ultimaExecucao: resumo.em,
         ultimoResultado: { ok: true, lidos: resumo.lidos, novos: resumo.novos, alterados: resumo.alterados, inalterados: resumo.inalterados, motivo: "importacao" },
         importacoes, usuarios,
-      }));
+      }), { merge: true });
       return resumo;
     },
     resumoBase() {
