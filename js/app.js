@@ -110,7 +110,7 @@ function shell() {
   document.getElementById("app").innerHTML = `
   <div class="app">
     <aside class="side" id="side">
-      <div class="brand">${LOGO}<div><div class="brand-name">N2 Radar</div><div class="brand-sub">Inteligência operacional</div></div></div>
+      <div class="brand">${LOGO}<div><div class="brand-name">N2 Radar</div></div></div>
       <nav class="nav" id="nav" aria-label="Principal">
         ${Object.entries(ROTAS).filter(([, r]) => !r.oculto).map(([k, r]) => `<a href="#/${k}" data-r="${k}">${icon(r.icone)}<span>${r.titulo}</span>${k === "gargalos" ? `<span class="count" id="cnt-gargalos" hidden></span>` : ""}</a>`).join("")}
       </nav>
@@ -121,14 +121,14 @@ function shell() {
           <button class="btn ghost sm" id="btn-tema" title="Alternar tema claro/escuro">${icon("moon")} Tema</button>
           ${S.fonte.modo === "firebase" ? `<button class="btn ghost sm" id="btn-sair">${icon("logout")} Sair</button>` : ""}
         </div>
-        <div class="user-line"><span class="avatar">${esc((S.usuario.nome || "?").split(" ").map((x) => x[0]).slice(0, 2).join(""))}</span><span><b style="font-weight:500">${esc(S.usuario.nome)}</b><br><span class="muted">${esc(S.usuario.papel)}</span></span></div>
+        <div class="user-line"><span class="avatar">${esc((S.usuario.nome || "?").split(" ").map((x) => x[0]).slice(0, 2).join(""))}</span><span><b style="font-weight:500">${esc(S.usuario.nome)}</b></span></div>
       </div>
     </aside>
     <div class="main">
       <header class="topbar">
         <div class="topbar-row">
           <button class="btn ghost menu-btn" id="btn-menu" aria-label="Abrir menu">${icon("menu")}</button>
-          <div><h1 class="page-title" id="page-title"></h1><div class="page-sub" id="page-sub"></div></div>
+          <div><h1 class="page-title" id="page-title"></h1></div>
         </div>
         <div class="filters" id="filtros"></div>
       </header>
@@ -174,18 +174,14 @@ function renderSync() {
   if (bv) bv.hidden = S.raw.pedidos.length > 0;
   const co = s.coletor;
   const auto = co?.ultimaVerificacao && Date.now() - co.ultimaVerificacao < 3 * 60e3;
-  if (auto) {
-    el.innerHTML = `
-    <div class="sync-line"><span class="dot"></span><span>Sincronização automática</span></div>
-    <div class="muted">verificado há ${fmtDur(Date.now() - co.ultimaVerificacao)} · a cada ${co.intervaloSeg || 30}s</div>
-    ${s.ultimaExecucao ? `<div class="muted">última mudança há ${fmtDur(idade)}</div>` : ""}`;
-  } else {
-    const tom = !s.ultimaExecucao ? "idle" : idade > intervalo ? "warn" : "";
-    el.innerHTML = `
-    <div class="sync-line"><span class="dot ${tom}"></span><span>${co?.ultimaVerificacao ? "Sincronização automática parada" : s.ultimaExecucao ? "Baseline importado" : "Nenhuma importação ainda"}</span></div>
-    ${co?.ultimaVerificacao ? `<div class="muted">última verificação há ${fmtDur(Date.now() - co.ultimaVerificacao)}</div>` : ""}
-    ${s.ultimaExecucao ? `<div class="muted">há ${fmtDur(idade)} · ${fmtNum(S.raw.pedidos.length)} pedido(s)</div>` : ""}`;
+  if (auto) el.innerHTML = `<div class="sync-line"><span class="dot"></span><span>Sincronizado · há ${fmtDur(Date.now() - co.ultimaVerificacao)}</span></div>`;
+  else {
+    const tom = !s.ultimaExecucao ? "idle" : "warn";
+    const txt = co?.ultimaVerificacao ? `Sincronização parada há ${fmtDur(Date.now() - co.ultimaVerificacao)}` : s.ultimaExecucao ? `Atualizado há ${fmtDur(idade)}` : "Sem dados ainda";
+    el.innerHTML = `<div class="sync-line"><span class="dot ${tom}"></span><span>${txt}</span></div>`;
   }
+  const bs = document.getElementById("btn-sync");
+  if (bs && S.fonte.modo === "firebase") bs.hidden = !!auto || !S.fonte.podeImportar;
   const cnt = document.getElementById("cnt-gargalos");
   if (cnt) {
     const n = S.E.filter((p) => p.parado || p.atrasado).length;
@@ -265,7 +261,6 @@ export function renderView() {
     const r = ROTAS[S.rota] || ROTAS.dashboard;
     document.querySelectorAll("#nav a").forEach((a) => (a.dataset.r === (S.rota === "pedido" ? "pedidos" : S.rota) ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
     document.getElementById("page-title").textContent = r.titulo;
-    document.getElementById("page-sub").textContent = r.sub;
     destroyCharts();
     const el = document.getElementById("view");
     try {
