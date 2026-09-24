@@ -26,29 +26,26 @@ export function render(el, ctx) {
 
   el.innerHTML = `
   <section class="kpis" aria-label="Indicadores">
-    ${kpi({ id: "total", rotulo: "Pedidos", valor: fmtNum(lista.length), sub: "abertos no período" })}
-    ${kpi({ id: "fila", rotulo: "Na fila", valor: fmtNum(naFila.length), tom: naFila.length ? "warn" : "ok", sub: filaMaisAntiga ? `mais antigo há ${fmtDur(filaMaisAntiga)}` : "ninguém esperando" })}
-    ${kpi({ id: "atend", rotulo: "Em atendimento", valor: fmtNum(emAtend.length), sub: "assumidos, ainda sem solução" })}
-    ${kpi({ id: "concl", rotulo: "Concluídos", valor: fmtNum(concl.length), sub: lista.length ? `${fmtPct(concl.length / lista.length)} do total` : "" })}
-    ${kpi({ id: "assumir", rotulo: "Tempo médio para assumir", valor: fmtDur(tAssumir), sub: `da abertura até alguém assumir · ${fmtNum(assumidos.length)} pedido(s)` })}
-    ${kpi({ id: "resolver", rotulo: "Tempo médio para resolver", valor: fmtDur(tResolver), sub: `da abertura até concluir · ${fmtNum(concl.length)} pedido(s)` })}
+    ${kpi({ id: "total", rotulo: "Pedidos", valor: fmtNum(lista.length), sub: "" })}
+    ${kpi({ id: "fila", rotulo: "Na fila", valor: fmtNum(naFila.length), tom: naFila.length ? "warn" : "ok", sub: filaMaisAntiga ? `mais antigo: ${fmtDur(filaMaisAntiga)}` : "" })}
+    ${kpi({ id: "atend", rotulo: "Em atendimento", valor: fmtNum(emAtend.length), sub: "" })}
+    ${kpi({ id: "concl", rotulo: "Concluídos", valor: fmtNum(concl.length), sub: "" })}
+    ${kpi({ id: "assumir", rotulo: "Média p/ assumir", valor: fmtDur(tAssumir), sub: "" })}
+    ${kpi({ id: "resolver", rotulo: "Média p/ resolver", valor: fmtDur(tResolver), sub: "" })}
   </section>
 
   <section class="panel">
-    <div class="panel-h"><h3>Pedidos por ${g === "dia" ? "dia" : g === "semana" ? "semana" : "mês"}</h3><span class="hint">clique numa barra para ver os pedidos</span></div>
+    <div class="panel-h"><h3>Pedidos por ${g === "dia" ? "dia" : g === "semana" ? "semana" : "mês"}</h3></div>
     <div class="panel-b"><div class="chart"><canvas id="c-volume" aria-label="Pedidos por período"></canvas></div>
     ${legend([{ cor: "var(--s1)", rotulo: "Abertos" }, { cor: "var(--s3)", rotulo: "Concluídos" }])}</div>
   </section>
 
   <section class="panel">
-    <div class="panel-h"><h3>Por analista</h3><span class="hint">clique para filtrar pelo analista</span></div>
+    <div class="panel-h"><h3>Por analista</h3></div>
     <div data-analistas></div>
   </section>
 
-  <section class="grid g2">
-    <div class="panel"><div class="panel-h"><h3>Motivos mais frequentes</h3><span class="hint">clique para filtrar</span></div><div class="panel-b" data-bl="motivo"></div></div>
-    <div class="panel"><div class="panel-h"><h3>Clientes com mais pedidos</h3><span class="hint">clique para filtrar</span></div><div class="panel-b" data-bl="cliente"></div></div>
-  </section>`;
+  <section class="panel"><div class="panel-h"><h3>Motivos mais frequentes</h3></div><div class="panel-b" data-bl="motivo"></div></section>`;
 
   // KPIs → lista de pedidos
   const conj = {
@@ -86,8 +83,8 @@ export function render(el, ctx) {
       { k: "n", rotulo: "Pedidos", n: true, render: (a) => fmtNum(a.n) },
       { k: "abertos", rotulo: "Em aberto", n: true, render: (a) => (a.abertos ? `<span class="pill info plain">${fmtNum(a.abertos)}</span>` : "0") },
       { k: "concluidos", rotulo: "Concluídos", n: true, render: (a) => fmtNum(a.concluidos) },
-      { k: "assumir", rotulo: "Tempo médio p/ assumir", n: true, render: (a) => fmtDur(a.assumir) },
-      { k: "resolver", rotulo: "Tempo médio p/ resolver", n: true, render: (a) => fmtDur(a.resolver) },
+      { k: "assumir", rotulo: "Média p/ assumir", n: true, render: (a) => fmtDur(a.assumir) },
+      { k: "resolver", rotulo: "Média p/ resolver", n: true, render: (a) => fmtDur(a.resolver) },
     ],
   });
 
@@ -99,6 +96,6 @@ export function render(el, ctx) {
     box.innerHTML = barList(itens, { cor: dim === "cliente" ? "var(--s2)" : "var(--s1)" });
     box.querySelectorAll("[data-drill]").forEach((r) => (r.onclick = () => { setFiltro(dim, [r.dataset.drill]); toast(`Filtro aplicado: ${r.dataset.drill}`); }));
   };
-  bl("motivo"); bl("cliente");
+  bl("motivo");
   void label;
 }
