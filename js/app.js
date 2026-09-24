@@ -15,13 +15,14 @@ import * as vConfig from "./views/config.js";
 import { abrirImportacao } from "./views/baseline-import.js";
 
 const ROTAS = {
-  dashboard: { view: vDashboard, titulo: "Visão geral", sub: "Volume, prazos, tempo e qualidade dos pedidos N2", icone: "dashboard", filtros: true },
-  pedidos: { view: vPedidos, titulo: "Pedidos", sub: "Lista completa com busca, ordenação e exportação", icone: "list", filtros: true },
-  gargalos: { view: vGargalos, titulo: "Gargalos", sub: "Onde o processo trava e por quê", icone: "funnel", filtros: true },
-  performance: { view: vPerformance, titulo: "Performance", sub: "Volume, velocidade e eficácia avaliados separadamente", icone: "gauge", filtros: true },
-  eficacia: { view: vEficacia, titulo: "Eficácia", sub: "O que resolve de fato e onde há retrabalho", icone: "target", filtros: true },
-  relatorios: { view: vRelatorios, titulo: "Relatórios", sub: "Gere e exporte em CSV, Excel ou PDF", icone: "file", filtros: true },
-  config: { view: vConfig, titulo: "Configurações", sub: "Integração, SLA, classificação e acesso", icone: "gear", filtros: false },
+  dashboard: { view: vDashboard, titulo: "Visão geral", sub: "Resumo dos pedidos de ajuda N2", icone: "dashboard", filtros: true },
+  pedidos: { view: vPedidos, titulo: "Pedidos", sub: "Todos os pedidos, com busca e exportação", icone: "list", filtros: true },
+  // telas avançadas: fora do menu por enquanto (continuam acessíveis pelo endereço)
+  gargalos: { view: vGargalos, titulo: "Gargalos", sub: "Onde o processo trava e por quê", icone: "funnel", filtros: true, oculto: true },
+  performance: { view: vPerformance, titulo: "Performance", sub: "Volume, velocidade e eficácia avaliados separadamente", icone: "gauge", filtros: true, oculto: true },
+  eficacia: { view: vEficacia, titulo: "Eficácia", sub: "O que resolve de fato e onde há retrabalho", icone: "target", filtros: true, oculto: true },
+  relatorios: { view: vRelatorios, titulo: "Relatórios", sub: "Gere e exporte em CSV, Excel ou PDF", icone: "file", filtros: true, oculto: true },
+  config: { view: vConfig, titulo: "Configurações", sub: "Sincronização com o Baseline e acesso", icone: "gear", filtros: false },
   pedido: { view: vPedido, titulo: "Pedido", sub: "", icone: "list", filtros: false, oculto: true },
 };
 
@@ -43,7 +44,7 @@ function aplicarPreset(f) {
   if (f.preset === "custom") return f;
   const fim = Date.now();
   const dias = Number(f.preset);
-  const ini = new Date(fim - dias * DAY);
+  const ini = new Date(fim - (Math.max(1, dias) - 1) * DAY);
   ini.setHours(0, 0, 0, 0);
   return { ...f, inicio: ini.getTime(), fim };
 }
@@ -91,20 +92,16 @@ export function drill(titulo, pedidos, nota = "") {
 export function colunasPedido(compacto = false) {
   const c = [
     { k: "protocolo", rotulo: "Pedido", render: (p) => `<span class="mono">${esc(p.protocolo || p.externalId)}</span>` },
-    { k: "titulo", rotulo: "Motivo", render: (p) => `<div style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.titulo)}">${esc(p.titulo)}</div><div class="small muted">${esc(p.cliente || "")}</div>` },
+    { k: "titulo", rotulo: "Motivo / cliente", render: (p) => `<div style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.titulo)}">${esc(p.titulo)}</div><div class="small muted" style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.cliente || "")}</div>` },
     { k: "status", rotulo: "Status", render: (p) => pillStatus(p.status) },
-    { k: "slaPct", rotulo: "SLA", render: pillSla, sort: (p) => p.slaPct },
-    { k: "responsavel", rotulo: "Responsável" },
+    { k: "prioridade", rotulo: "Urgência", render: (p) => pillPrioridade(p.prioridade), sort: (p) => ({ urgente: 4, alta: 3, media: 2, baixa: 1 }[p.prioridade]) },
+    { k: "responsavel", rotulo: "Analista", render: (p) => esc(p.responsavel || "—") },
     { k: "abertura", rotulo: "Abertura", render: (p) => `<span class="num">${fmtDateTime(p.abertura)}</span>` },
-    { k: "total", rotulo: "Tempo total", n: true, render: (p) => fmtDur(p.total) },
   ];
   if (!compacto) {
-    c.splice(4, 0, { k: "prioridade", rotulo: "Prioridade", render: (p) => pillPrioridade(p.prioridade), sort: (p) => ({ urgente: 4, alta: 3, media: 2, baixa: 1 }[p.prioridade]) });
-    c.splice(6, 0, { k: "equipe", rotulo: "Equipe" });
-    c.push({ k: "trabalho", rotulo: "Em atendimento", n: true, render: (p) => fmtDur(p.tempo.trabalho), sort: (p) => p.tempo.trabalho, titulo: "Tempo em status de atendimento ativo" });
-    c.push({ k: "espera", rotulo: "Em espera", n: true, render: (p) => fmtDur(p.tempo.espera_externa + p.tempo.espera_interna), sort: (p) => p.tempo.espera_externa + p.tempo.espera_interna });
-    c.push({ k: "esforcoMin", rotulo: "Esforço registrado", n: true, render: (p) => (p.nTarefas ? fmtDur(p.esforcoMin * 60e3) : `<span class="muted">sem tarefas</span>`), titulo: "Soma das tarefas registradas" });
+    c.push({ k: "primeiraMs", rotulo: "Tempo p/ assumir", n: true, render: (p) => (p.primeiraMs == null ? `<span class="muted">${p.status === "novo" ? `na fila há ${fmtDur(Date.now() - p.abertura)}` : "—"}</span>` : fmtDur(p.primeiraMs)) });
   }
+  c.push({ k: "total", rotulo: "Tempo total", n: true, render: (p) => fmtDur(p.total) });
   return c;
 }
 
@@ -197,13 +194,23 @@ function renderSync() {
 }
 
 // ── Barra de filtros ─────────────────────────────────────────
+// Filtros simples, sempre visíveis: período, analista, status, urgência, tipo.
+const FILTROS_BARRA = [
+  ["responsavel", "Analista"], ["status", "Status"], ["prioridade", "Urgência"], ["categoria", "Tipo"],
+];
+const ROTULO_OPCAO = { status: "status", prioridade: "prioridade", categoria: "categoria" };
+const ORDEM = { status: ["novo", "em_andamento", "concluido", "cancelado"], prioridade: ["urgente", "alta", "media", "baixa"] };
+
 function opcoesFiltro(k) {
-  const tipoLabel = { status: "status", prioridade: "prioridade", categoria: "categoria", motivoDemora: "motivoDemora", tipoTarefa: "tipoTarefa" }[k];
-  if (k === "sla") return [["cumprido", "Dentro do SLA"], ["violado", "Fora do SLA / atrasado"], ["risco", "Em risco"], ["no_prazo", "No prazo (aberto)"]].map(([v, rotulo]) => ({ v, rotulo, n: S.E.filter((p) => p.slaStatus === v).length }));
-  if (k === "tipoTarefa") return TAX.tiposTarefa.map((t) => ({ v: t.id, rotulo: t.rotulo }));
+  // conta dentro do período e dos OUTROS filtros, para os números baterem com a tela
+  const base = applyFilters(S.E, { ...S.filtros, [k]: [] });
   const cont = new Map();
-  S.E.forEach((p) => { const v = p[k] ?? "__vazio"; cont.set(v, (cont.get(v) || 0) + 1); });
-  return [...cont].sort((a, b) => b[1] - a[1]).map(([v, n]) => ({ v, n, rotulo: v === "__vazio" ? "(não informado)" : tipoLabel ? label(tipoLabel, v) : v }));
+  base.forEach((p) => { const v = p[k]; if (v == null || v === "") return; cont.set(v, (cont.get(v) || 0) + 1); });
+  (S.filtros[k] || []).forEach((v) => { if (!cont.has(v)) cont.set(v, 0); });
+  let ops = [...cont].map(([v, n]) => ({ v, n, rotulo: ROTULO_OPCAO[k] ? label(ROTULO_OPCAO[k], v) : v }));
+  if (ORDEM[k]) ops.sort((a, b) => ORDEM[k].indexOf(a.v) - ORDEM[k].indexOf(b.v));
+  else ops.sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));
+  return ops;
 }
 
 function renderFiltros() {
@@ -211,61 +218,41 @@ function renderFiltros() {
   const r = ROTAS[S.rota];
   if (!r?.filtros) { el.hidden = true; return; }
   el.hidden = false;
+  if (!["1", "7", "30", "90", "365", "custom"].includes(S.filtros.preset)) S.filtros.preset = "30";
+  S.filtros = aplicarPreset(S.filtros);
   const f = S.filtros;
-  const ativos = FILTER_KEYS.filter(([k]) => f[k]?.length);
-  const presets = [["7", "7 dias"], ["30", "30 dias"], ["90", "90 dias"], ["180", "6 meses"], ["365", "12 meses"], ["custom", "Personalizado"]];
+  const presets = [["1", "Hoje"], ["7", "7 dias"], ["30", "30 dias"], ["90", "90 dias"], ["365", "12 meses"], ["custom", "Personalizado"]];
+  const ativos = FILTER_KEYS.filter(([k]) => f[k]?.length).length;
   el.innerHTML = `
-    <div class="seg" role="group" aria-label="Período">${presets.map(([v, t]) => `<button type="button" data-preset="${v}" aria-pressed="${f.preset === v}">${t}</button>`).join("")}</div>
+    <label class="fsel"><span>Período</span><select class="input" id="f-preset">${presets.map(([v, t]) => `<option value="${v}" ${f.preset === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>
     ${f.preset === "custom" ? `<span class="date-range"><input type="date" class="input" id="f-ini" value="${toDateInput(f.inicio)}" aria-label="Data inicial"><span class="muted">a</span><input type="date" class="input" id="f-fim" value="${toDateInput(f.fim)}" aria-label="Data final"></span>` : ""}
-    <span style="position:relative"><button class="btn sm" id="btn-filtros" style="height:28px">${icon("filter")} Filtros${ativos.length ? ` (${ativos.length})` : ""}</button></span>
-    ${ativos.map(([k, rot]) => `<span class="chip">${esc(rot)}: ${esc(f[k].slice(0, 2).map((v) => opcoesFiltro(k).find((o) => o.v === v)?.rotulo ?? v).join(", "))}${f[k].length > 2 ? ` +${f[k].length - 2}` : ""}<button data-limpar="${k}" aria-label="Remover filtro ${esc(rot)}">${icon("x")}</button></span>`).join("")}
-    ${ativos.length ? `<button class="btn ghost sm" id="btn-limpar">Limpar filtros</button>` : ""}
-    <span class="muted small" style="margin-left:auto">Período pela data de abertura</span>`;
-  el.querySelectorAll("[data-preset]").forEach((b) => (b.onclick = () => {
-    S.filtros.preset = b.dataset.preset;
+    ${FILTROS_BARRA.map(([k, rot]) => {
+      const sel = f[k]?.[0] ?? "";
+      return `<label class="fsel ${sel ? "on" : ""}"><span>${rot}</span><select class="input" data-f="${k}"><option value="">Todos</option>${opcoesFiltro(k).map((o) => `<option value="${esc(o.v)}" ${o.v === sel ? "selected" : ""}>${esc(o.rotulo)} (${fmtNum(o.n)})</option>`).join("")}</select></label>`;
+    }).join("")}
+    ${ativos ? `<button class="btn ghost sm" id="btn-limpar" style="align-self:end">${icon("x")} Limpar filtros</button>` : ""}
+    ${FILTER_KEYS.filter(([k]) => f[k]?.length && !FILTROS_BARRA.some(([b]) => b === k)).map(([k, rot]) => `<span class="chip" style="align-self:end">${esc(rot)}: ${esc(f[k].join(", "))}<button data-limpar="${k}" aria-label="Remover filtro ${esc(rot)}">${icon("x")}</button></span>`).join("")}`;
+  el.querySelector("#f-preset").onchange = (e) => {
+    S.filtros.preset = e.target.value;
+    if (e.target.value === "custom") { S.filtros.inicio = S.filtros.inicio || Date.now() - 30 * DAY; S.filtros.fim = Date.now(); }
     lsSet(LSF, S.filtros); renderFiltros(); renderView();
-  }));
+  };
   const di = el.querySelector("#f-ini"), dfim = el.querySelector("#f-fim");
   if (di) {
     const upd = () => {
       if (!di.value || !dfim.value) return;
       S.filtros.inicio = new Date(di.value + "T00:00:00").getTime();
       S.filtros.fim = new Date(dfim.value + "T23:59:59").getTime();
-      lsSet(LSF, S.filtros); renderView();
+      lsSet(LSF, S.filtros); renderFiltros(); renderView();
     };
     di.onchange = upd; dfim.onchange = upd;
   }
+  el.querySelectorAll("[data-f]").forEach((s) => (s.onchange = () => setFiltro(s.dataset.f, s.value ? [s.value] : [])));
   el.querySelectorAll("[data-limpar]").forEach((b) => (b.onclick = () => setFiltro(b.dataset.limpar, [])));
   el.querySelector("#btn-limpar")?.addEventListener("click", () => {
     FILTER_KEYS.forEach(([k]) => (S.filtros[k] = []));
     lsSet(LSF, S.filtros); renderFiltros(); renderView();
   });
-  el.querySelector("#btn-filtros").onclick = (e) => {
-    e.stopPropagation();
-    const ex = document.getElementById("pop-filtros");
-    if (ex) { ex.remove(); return; }
-    const pop = document.createElement("div");
-    pop.className = "pop"; pop.id = "pop-filtros";
-    pop.style.top = "34px"; pop.style.left = "0";
-    pop.innerHTML = `<div class="filter-grid">${FILTER_KEYS.map(([k]) => `<div data-ms="${k}"></div>`).join("")}</div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn sm" data-fechar>Fechar</button></div>`;
-    e.currentTarget.parentElement.appendChild(pop);
-    const r = pop.getBoundingClientRect();
-    if (r.right > innerWidth - 16) pop.style.left = `${innerWidth - 16 - r.right}px`;
-    FILTER_KEYS.forEach(([k, rot]) => multiSelect(pop.querySelector(`[data-ms="${k}"]`), {
-      rotulo: rot, opcoes: opcoesFiltro(k), selecionados: S.filtros[k],
-      onChange: (v) => { S.filtros[k] = v; lsSet(LSF, S.filtros); renderView(); atualizarChipsSemFechar(); },
-    }));
-    pop.onclick = (ev) => ev.stopPropagation();
-    pop.querySelector("[data-fechar]").onclick = () => { pop.remove(); renderFiltros(); };
-    const fora = () => { if (pop.isConnected) { pop.remove(); renderFiltros(); } document.removeEventListener("click", fora); };
-    setTimeout(() => document.addEventListener("click", fora), 0);
-  };
-}
-function atualizarChipsSemFechar() {
-  const b = document.getElementById("btn-filtros");
-  const n = FILTER_KEYS.filter(([k]) => S.filtros[k]?.length).length;
-  if (b) b.innerHTML = `${icon("filter")} Filtros${n ? ` (${n})` : ""}`;
 }
 
 // ── Render da rota atual ─────────────────────────────────────
