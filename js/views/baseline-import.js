@@ -1,7 +1,30 @@
 // Importação do Baseline: modal de importação e painel de Configurações → Integração.
 import { COLETOR_FONTE, COLETOR_BOOKMARKLET } from "../services/baseline-coletor.js";
 import { icon, toast, modal, confirmar } from "../ui/components.js";
-import { esc, fmtDate, fmtDateTime, fmtNum } from "../ui/format.js";
+import { esc, fmtDate, fmtDateTime, fmtNum, fmtDur } from "../ui/format.js";
+import { APP_CONFIG } from "../config.js";
+
+// Favorito da sincronização automática: carrega o coletor publicado no GitHub Pages,
+// então qualquer melhoria no coletor chega sem reinstalar o favorito.
+const URL_COLETOR = new URL("js/coletor.js", APP_CONFIG.urlPublica || location.href).href;
+export const BOOKMARKLET_AUTO = `javascript:(()=>{import('${URL_COLETOR}?t='+Date.now()).then(m=>m.iniciar()).catch(e=>alert('N2 Radar: não foi possível carregar o coletor ('+e.message+')'))})()`;
+export const USERSCRIPT = `// ==UserScript==
+// @name         N2 Radar · sincronização automática
+// @namespace    ${APP_CONFIG.urlPublica || ""}
+// @version      1.0
+// @description  Sincroniza os Pedidos de Ajuda do Baseline com o N2 Radar a cada 30 s enquanto houver uma aba do Baseline aberta.
+// @match        https://baseline.ixcsoft.com.br/admin/*
+// @grant        none
+// @run-at       document-idle
+// ==/UserScript==
+(function () {
+  if (window.top !== window) return;
+  const s = document.createElement("script");
+  s.type = "module";
+  s.textContent = "import('${URL_COLETOR}?t=" + Math.floor(Date.now() / 36e5) + "').then(m => m.iniciar({ auto: true }))";
+  document.head.appendChild(s);
+})();
+`;
 
 async function copiar(texto, alvoFallback) {
   try { await navigator.clipboard.writeText(texto); return true; } catch { /* área de transferência bloqueada no visualizador */ }
@@ -70,6 +93,8 @@ export function painelBaseline(S, rerender) {
   const pode = S.fonte.podeImportar;
   const r = S.fonte.resumoBase();
   const ult = r.importacoes?.[0];
+  const co = S.sync?.coletor;
+  const autoAtivo = !!(co?.ultimaVerificacao && Date.now() - co.ultimaVerificacao < 3 * 60e3);
   const html = `
   <section class="panel" id="p-baseline">
     <div class="panel-h"><h3>Baseline IXCSoft · Pedidos de Ajuda</h3><span class="hint">coleta pela sua sessão do Baseline; nenhuma senha passa pelo N2 Radar</span></div>
@@ -82,6 +107,32 @@ export function painelBaseline(S, rerender) {
       </div>
       ${pode ? "" : `<div class="callout">Seu perfil pode consultar e classificar os pedidos. A importação do Baseline é feita por administradores e gestores.</div>`}
 
+      ${firebase ? `
+      <div class="callout" style="display:grid;gap:4px">
+        <b>Sincronização automática ${autoAtivo ? `<span style="color:var(--ok)">ativa</span>` : "desligada"}</b>
+        <span>${autoAtivo ? `Verificando o Baseline a cada ${co.intervaloSeg || 30}s pela aba de ${esc(co.por || "—")} · última verificação há ${fmtDur(Date.now() - co.ultimaVerificacao)}.` : co?.ultimaVerificacao ? `Última verificação há ${fmtDur(Date.now() - co.ultimaVerificacao)}, por ${esc(co.por || "—")}. Nenhuma aba do Baseline está sincronizando agora.` : "Ainda não foi ligada. Siga os passos abaixo (uma vez só)."}</span>
+      </div>
+      <div style="display:grid;gap:8px">
+        <b>1. Instale o favorito (uma vez)</b>
+        <p class="note" style="margin:0">Arraste o botão para a barra de favoritos do Chrome (Ctrl+Shift+B mostra a barra).</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <a class="btn primary" data-bm-auto href="#" draggable="true" title="Arraste para a barra de favoritos" style="cursor:grab">${icon("refresh")} N2 Radar · Sincronizar</a>
+          <button class="btn ghost sm" data-copiar-auto>Copiar endereço do favorito</button>
+        </div>
+      </div>
+      <div style="display:grid;gap:6px">
+        <b>2. Ligue no Baseline</b>
+        <p class="note" style="margin:0">Abra qualquer página do Baseline (já logado) e clique no favorito. Na primeira vez, clique em <b>Entrar com Google</b> no painel que aparece no canto da tela (mesma conta do Radar, perfil admin ou gestor). A partir daí ele confere o Baseline <b>a cada 30 segundos</b>, grava só o que mudou e o Radar atualiza sozinho. A primeira rodada lê os últimos 30 dias e leva uns 2 minutos.</p>
+        <p class="note" style="margin:0"><b>Deixe essa aba do Baseline aberta</b> (pode fixar a guia). Se ela fechar ou recarregar, é só clicar no favorito de novo.</p>
+      </div>
+      <details><summary style="cursor:pointer;font-weight:600">Opcional: ligar sozinho ao abrir o Baseline (Tampermonkey)</summary>
+        <div class="note" style="display:grid;gap:8px;margin-top:8px">
+          <span>Com a extensão <b>Tampermonkey</b>, a sincronização liga sozinha sempre que qualquer aba do Baseline abrir, sem precisar clicar no favorito. Instale a extensão, crie um novo script e cole o conteúdo abaixo.</span>
+          <div><button class="btn sm" data-copiar-us>Copiar script do Tampermonkey</button></div>
+        </div>
+      </details>
+      <textarea class="input code" rows="3" data-fallback hidden readonly></textarea>
+      <details><summary style="cursor:pointer;font-weight:600">Alternativa: importação manual por arquivo</summary><div style="display:grid;gap:12px;margin-top:10px">` : ""}
       <div style="display:grid;gap:8px">
         <b>1. Instale o coletor (uma vez)</b>
         <p class="note" style="margin:0">Arraste o botão abaixo para a barra de favoritos do Chrome. Se preferir, copie o script e cole no Console (F12) da página do Baseline.</p>
@@ -104,6 +155,7 @@ export function painelBaseline(S, rerender) {
         </div>
       </div>
 
+      ${firebase ? `</div></details>` : ""}
       <details><summary style="cursor:pointer;font-weight:600">Como os dados do Baseline viram métricas</summary>
         <div class="note" style="display:grid;gap:6px;margin-top:8px">
           <span><b>Linha do tempo:</b> criado → <i>Novo (fila)</i>; assumido → <i>Em atendimento</i>; resolvido → <i>Concluído</i>; recusado → <i>Cancelado</i>. Fila = até alguém assumir; atendimento = de assumir até resolver.</span>
@@ -121,6 +173,13 @@ export function painelBaseline(S, rerender) {
   </section>`;
 
   const montar = (el) => {
+    const bmA = el.querySelector("[data-bm-auto]");
+    if (bmA) {
+      bmA.setAttribute("href", BOOKMARKLET_AUTO);
+      bmA.addEventListener("click", (e) => { e.preventDefault(); toast("Arraste este botão para a barra de favoritos e clique nele numa página do Baseline."); });
+      el.querySelector("[data-copiar-auto]").onclick = async () => toast(await copiar(BOOKMARKLET_AUTO, el.querySelector("[data-fallback]")) ? "Copiado. Crie um favorito e cole como endereço (URL)." : "Selecione o texto abaixo e copie (Ctrl+C).");
+      el.querySelector("[data-copiar-us]").onclick = async () => toast(await copiar(USERSCRIPT, el.querySelector("[data-fallback]")) ? "Script copiado. Cole num novo script do Tampermonkey e salve." : "Selecione o texto abaixo e copie (Ctrl+C).");
+    }
     const bm = el.querySelector("[data-bm]");
     // o href javascript: é aplicado via DOM para não ser executado pelo clique aqui dentro
     bm.setAttribute("href", COLETOR_BOOKMARKLET);
