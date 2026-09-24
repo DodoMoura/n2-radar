@@ -192,7 +192,7 @@ function renderSync() {
 // ── Barra de filtros ─────────────────────────────────────────
 // Filtros simples, sempre visíveis: período, analista, status, urgência, tipo.
 const FILTROS_BARRA = [
-  ["responsavel", "Analista"], ["status", "Status"], ["prioridade", "Urgência"], ["categoria", "Tipo"],
+  ["responsavel", "Responsável"], ["status", "Status"], ["prioridade", "Urgência"], ["categoria", "Tipo"],
 ];
 const ROTULO_OPCAO = { status: "status", prioridade: "prioridade", categoria: "categoria" };
 const ORDEM = { status: ["novo", "em_andamento", "concluido", "cancelado"], prioridade: ["urgente", "alta", "media", "baixa"] };
@@ -207,6 +207,20 @@ function opcoesFiltro(k) {
   if (ORDEM[k]) ops.sort((a, b) => ORDEM[k].indexOf(a.v) - ORDEM[k].indexOf(b.v));
   else ops.sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));
   return ops;
+}
+
+// Encontra o nome do usuário logado entre os responsáveis do Baseline
+// (os nomes podem diferir: "Eduardo Henrique De Oliveira Moura" × "Eduardo Henrique Moura").
+const norm = (x) => (x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+function meuResponsavel() {
+  const eu = new Set(norm(S.usuario?.nome));
+  if (!eu.size) return null;
+  const nomes = [...new Set(S.E.map((p) => p.responsavel).filter(Boolean))];
+  const cand = nomes
+    .map((n) => { const t = norm(n); return { n, ok: t.length && t.every((x) => eu.has(x)), hits: t.filter((x) => eu.has(x)).length }; })
+    .filter((c) => c.ok || c.hits >= 2)
+    .sort((a, b) => Number(b.ok) - Number(a.ok) || b.hits - a.hits);
+  return cand[0]?.n ?? null;
 }
 
 function renderFiltros() {
@@ -226,6 +240,7 @@ function renderFiltros() {
       const sel = f[k]?.[0] ?? "";
       return `<label class="fsel ${sel ? "on" : ""}"><span>${rot}</span><select class="input" data-f="${k}"><option value="">Todos</option>${opcoesFiltro(k).map((o) => `<option value="${esc(o.v)}" ${o.v === sel ? "selected" : ""}>${esc(o.rotulo)} (${fmtNum(o.n)})</option>`).join("")}</select></label>`;
     }).join("")}
+    ${(() => { const eu = meuResponsavel(); const on = eu && f.responsavel?.length === 1 && f.responsavel[0] === eu; return `<button class="btn sm ${on ? "primary" : ""}" id="btn-meus" style="align-self:end;height:32px" aria-pressed="${!!on}" ${eu ? `title="Responsável: ${esc(eu)}"` : ""}>${icon("user")} Meus pedidos</button>`; })()}
     ${ativos ? `<button class="btn ghost sm" id="btn-limpar" style="align-self:end">${icon("x")} Limpar filtros</button>` : ""}
     ${FILTER_KEYS.filter(([k]) => f[k]?.length && !FILTROS_BARRA.some(([b]) => b === k)).map(([k, rot]) => `<span class="chip" style="align-self:end">${esc(rot)}: ${esc(f[k].join(", "))}<button data-limpar="${k}" aria-label="Remover filtro ${esc(rot)}">${icon("x")}</button></span>`).join("")}`;
   el.querySelector("#f-preset").onchange = (e) => {
@@ -243,6 +258,12 @@ function renderFiltros() {
     };
     di.onchange = upd; dfim.onchange = upd;
   }
+  el.querySelector("#btn-meus").onclick = () => {
+    const eu = meuResponsavel();
+    if (!eu) { toast("Não encontrei seu nome entre os responsáveis. Escolha no filtro Responsável."); return; }
+    const on = S.filtros.responsavel?.length === 1 && S.filtros.responsavel[0] === eu;
+    setFiltro("responsavel", on ? [] : [eu]);
+  };
   el.querySelectorAll("[data-f]").forEach((s) => (s.onchange = () => setFiltro(s.dataset.f, s.value ? [s.value] : [])));
   el.querySelectorAll("[data-limpar]").forEach((b) => (b.onclick = () => setFiltro(b.dataset.limpar, [])));
   el.querySelector("#btn-limpar")?.addEventListener("click", () => {
