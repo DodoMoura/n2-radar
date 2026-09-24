@@ -375,4 +375,4 @@ details { display: grid; gap: 8px; }
 .fsel.on select { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .filters .date-range { align-self: flex-end; }
 
-.kpis { grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); }
+.kpis { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
