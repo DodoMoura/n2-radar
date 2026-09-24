@@ -366,3 +366,13 @@ details { display: grid; gap: 8px; }
 @media (max-width: 520px) { .gantt-axis span:nth-child(2), .gantt-axis span:nth-child(4) { display: none; } }
 
 .kv dd{overflow-wrap:anywhere}
+
+/* Barra de filtros simples */
+.filters { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+.fsel { display: grid; gap: 3px; font-size: 11.5px; color: var(--ink-3); }
+.fsel span { padding-left: 2px; }
+.fsel select { height: 32px; min-width: 150px; max-width: 240px; padding: 0 28px 0 10px; font-size: 13px; }
+.fsel.on select { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.filters .date-range { align-self: flex-end; }
+
+.kpis { grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); }
