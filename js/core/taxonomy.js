@@ -2,7 +2,7 @@
 // (persistida em config/taxonomia). Os ids são estáveis; os rótulos podem mudar.
 
 export const STATUS = [
-  { id: "novo", rotulo: "Novo (na fila)", tipo: "fila" },
+  { id: "novo", rotulo: "Na fila", tipo: "fila" },
   { id: "em_andamento", rotulo: "Em atendimento", tipo: "trabalho" },
   { id: "aguardando_solicitante", rotulo: "Aguardando solicitante", tipo: "espera_externa", motivoDemora: "aguardando_solicitante" },
   { id: "aguardando_evidencias", rotulo: "Aguardando evidências", tipo: "espera_externa", motivoDemora: "aguardando_evidencias" },
@@ -10,7 +10,7 @@ export const STATUS = [
   { id: "aguardando_equipe", rotulo: "Aguardando outra equipe", tipo: "espera_interna", motivoDemora: "aguardando_outra_equipe" },
   { id: "aguardando_desenvolvimento", rotulo: "Aguardando desenvolvimento", tipo: "espera_interna", motivoDemora: "aguardando_desenvolvimento" },
   { id: "concluido", rotulo: "Concluído", tipo: "final" },
-  { id: "cancelado", rotulo: "Cancelado", tipo: "final" },
+  { id: "cancelado", rotulo: "Recusado", tipo: "final" },
 ];
 
 export const TIPOS_TEMPO = [
