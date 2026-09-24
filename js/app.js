@@ -119,7 +119,7 @@ function shell() {
       </nav>
       <div class="side-foot">
         <div class="sync-box" id="sync-box"></div>
-        <button class="btn primary" id="btn-sync" ${S.fonte.podeImportar ? "" : "hidden"}>${icon("refresh")} Importar do Baseline</button>
+        <button class="btn primary" id="btn-sync" ${S.fonte.podeImportar ? "" : "hidden"}>${icon("refresh")} ${S.fonte.modo === "firebase" ? "Sincronização" : "Importar do Baseline"}</button>
         <div style="display:flex;gap:6px">
           <button class="btn ghost sm" id="btn-tema" title="Alternar tema claro/escuro">${icon("moon")} Tema</button>
           ${S.fonte.modo === "firebase" ? `<button class="btn ghost sm" id="btn-sair">${icon("logout")} Sair</button>` : ""}
@@ -162,6 +162,7 @@ function alternarTema() {
 }
 
 function sincronizar() {
+  if (S.fonte.modo === "firebase") { ir("config"); return; }
   abrirImportacao(S, () => renderView());
 }
 
@@ -174,12 +175,19 @@ function renderSync() {
   const intervalo = (S.cfg.integracao.intervaloMin || 1440) * 60e3;
   const bv = document.getElementById("banner-vazio");
   if (bv) bv.hidden = S.raw.pedidos.length > 0;
-  {
+  const co = s.coletor;
+  const auto = co?.ultimaVerificacao && Date.now() - co.ultimaVerificacao < 3 * 60e3;
+  if (auto) {
+    el.innerHTML = `
+    <div class="sync-line"><span class="dot"></span><span>Sincronização automática</span></div>
+    <div class="muted">verificado há ${fmtDur(Date.now() - co.ultimaVerificacao)} · a cada ${co.intervaloSeg || 30}s</div>
+    ${s.ultimaExecucao ? `<div class="muted">última mudança há ${fmtDur(idade)}</div>` : ""}`;
+  } else {
     const tom = !s.ultimaExecucao ? "idle" : idade > intervalo ? "warn" : "";
     el.innerHTML = `
-    <div class="sync-line"><span class="dot ${tom}"></span><span>${s.ultimaExecucao ? "Baseline importado" : "Nenhuma importação ainda"}</span></div>
-    ${s.ultimaExecucao ? `<div class="muted">há ${fmtDur(idade)} · ${fmtNum(S.raw.pedidos.length)} pedido(s)</div>` : ""}
-    ${r ? `<div class="muted">${r.novos} novo(s) · ${r.alterados} atualizado(s)</div>` : ""}`;
+    <div class="sync-line"><span class="dot ${tom}"></span><span>${co?.ultimaVerificacao ? "Sincronização automática parada" : s.ultimaExecucao ? "Baseline importado" : "Nenhuma importação ainda"}</span></div>
+    ${co?.ultimaVerificacao ? `<div class="muted">última verificação há ${fmtDur(Date.now() - co.ultimaVerificacao)}</div>` : ""}
+    ${s.ultimaExecucao ? `<div class="muted">há ${fmtDur(idade)} · ${fmtNum(S.raw.pedidos.length)} pedido(s)</div>` : ""}`;
   }
   const cnt = document.getElementById("cnt-gargalos");
   if (cnt) {
@@ -353,7 +361,7 @@ async function iniciar() {
   addEventListener("hashchange", rotear);
   // tempos de pedidos abertos crescem com o relógio: recalcula a cada 5 min
   setInterval(() => { if (S.carregado) { recalcular(); if (!["config", "pedido"].includes(S.rota)) renderView(); else renderSync(); } }, 5 * 60e3);
-  setInterval(renderSync, 60e3);
+  setInterval(renderSync, 30e3);
 }
 
 iniciar();

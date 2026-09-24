@@ -18,6 +18,8 @@ export const APP_CONFIG = {
   // E-mails que viram administradores no primeiro login (manter igual ao firestore.rules).
   admins: ["deoliveiramouraeduardohenrique@gmail.com", "eduardo.moura@ixcsoft.com.br"],
   firebaseSdkVersion: "10.12.2",
+  // Endereço público do Radar (de onde o favorito do Baseline carrega o coletor).
+  urlPublica: "https://dodomoura.github.io/n2-radar/",
   // Janela de dados carregada no navegador (dias).
   janelaDias: 365,
 };
